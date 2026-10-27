@@ -50,6 +50,13 @@ const videoDatabase = openVideoDatabase();
 const searchInput = document.querySelector('#search-input');
 const searchResults = document.querySelector('#search-results');
 const searchSubmit = document.querySelector('#search-submit');
+async function readApiJson(response) {
+  const text = await response.text();
+  try { return JSON.parse(text); }
+  catch {
+    throw new Error('O servidor do TunTubes não respondeu à solicitação. Abra o projeto pelo servidor da aplicação, não apenas por uma página estática.');
+  }
+}
 function openSearchPage() { const query = searchInput.value.trim(); if (query) window.open(`search.html?${new URLSearchParams({ q: query })}`, '_blank', 'noopener'); }
 searchSubmit.addEventListener('click', openSearchPage);
 searchInput.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); openSearchPage(); } });
@@ -68,13 +75,13 @@ function renderSearchResults(results) {
   searchResults.hidden = false;
 }
 let searchTimer;
-searchInput.addEventListener('input', () => { clearTimeout(searchTimer); const query = searchInput.value.trim(); if (query.length < 2) { searchResults.hidden = true; return; } searchTimer = setTimeout(async () => { try { const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`); renderSearchResults(await response.json()); } catch { searchResults.hidden = true; } }, 180); });
+searchInput.addEventListener('input', () => { clearTimeout(searchTimer); const query = searchInput.value.trim(); if (query.length < 2) { searchResults.hidden = true; return; } searchTimer = setTimeout(async () => { try { const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`); renderSearchResults(await readApiJson(response)); } catch { searchResults.innerHTML = '<p>Conecte o servidor do TunTubes para pesquisar vídeos e canais.</p>'; searchResults.hidden = false; } }, 180); });
 document.addEventListener('click', (event) => { if (!event.target.closest('.search')) searchResults.hidden = true; });
 
 async function loadSubscriptions() {
   const grid = document.querySelector('#subscriptions-grid');
   if (!currentUser) { grid.innerHTML = '<p class="empty-library">Entre para ver os canais que você acompanha.</p>'; return; }
-  try { const response = await fetch('/api/subscriptions'); const data = await response.json(); if (!response.ok) throw new Error(); grid.innerHTML = ''; if (!data.channels.length) { grid.innerHTML = '<p class="empty-library">Você ainda não se inscreveu em nenhum canal.</p>'; return; } data.channels.forEach((channel) => { const item = document.createElement('article'); item.className = 'subscription-card'; item.innerHTML = `<span></span><div><h3></h3><p>Canal inscrito</p></div><button type="button">Ver canal</button>`; item.querySelector('span').textContent = channel.initials; item.querySelector('h3').textContent = channel.name; item.querySelector('button').addEventListener('click', () => window.open(`watch.html?${new URLSearchParams({ id: `canal-${channel.id}`, title: channel.name, channel: channel.name, channelId: channel.id })}`, '_blank', 'noopener')); grid.append(item); }); } catch { grid.innerHTML = '<p class="empty-library">Não foi possível carregar suas inscrições agora.</p>'; }
+  try { const response = await fetch('/api/subscriptions'); const data = await readApiJson(response); if (!response.ok) throw new Error(); grid.innerHTML = ''; if (!data.channels.length) { grid.innerHTML = '<p class="empty-library">Você ainda não se inscreveu em nenhum canal.</p>'; return; } data.channels.forEach((channel) => { const item = document.createElement('article'); item.className = 'subscription-card'; item.innerHTML = `<span></span><div><h3></h3><p>Canal inscrito</p></div><button type="button">Ver canal</button>`; item.querySelector('span').textContent = channel.initials; item.querySelector('h3').textContent = channel.name; item.querySelector('button').addEventListener('click', () => window.open(`watch.html?${new URLSearchParams({ id: `canal-${channel.id}`, title: channel.name, channel: channel.name, channelId: channel.id })}`, '_blank', 'noopener')); grid.append(item); }); } catch { grid.innerHTML = '<p class="empty-library">Não foi possível carregar suas inscrições agora.</p>'; }
 }
 
 document.querySelectorAll('[data-open-upload]').forEach((button) => {
@@ -155,7 +162,7 @@ publishButton.addEventListener('click', async () => {
 async function uploadToCloud(file) {
   if (!cloudStorageEnabled) return null;
   const linkResponse = await fetch('/api/cloud/direct-upload', { method: 'POST' });
-  const linkData = await linkResponse.json();
+  const linkData = await readApiJson(linkResponse);
   if (!linkResponse.ok) throw new Error(linkData.error || 'Não foi possível iniciar o envio para a nuvem.');
   const uploadData = new FormData();
   uploadData.append('file', file, file.name);
@@ -460,8 +467,8 @@ async function loadVideoSocial() {
       fetch(`/api/videos/${encodeURIComponent(activeVideoSocial.videoId)}/social`),
       fetch(`/api/channels/${encodeURIComponent(activeVideoSocial.channelId)}/social`),
     ]);
-    const videoData = await videoResponse.json();
-    const channelData = await channelResponse.json();
+    const videoData = await readApiJson(videoResponse);
+    const channelData = await readApiJson(channelResponse);
     renderVideoComments(videoData.comments || []);
     subscriberCount.textContent = formatCount(channelData.subscriberCount || 0);
     subscribeChannelButton.textContent = channelData.subscribed ? 'Inscrito' : 'Inscrever-se';
@@ -473,7 +480,7 @@ subscribeChannelButton.addEventListener('click', async () => {
   if (!currentUser) return openAuth();
   if (!activeVideoSocial) return;
   const response = await fetch(`/api/channels/${encodeURIComponent(activeVideoSocial.channelId)}/subscribe`, { method: 'POST' });
-  const data = await response.json();
+  const data = await readApiJson(response);
   if (!response.ok) return alert(data.error || 'Não foi possível alterar a inscrição.');
   subscriberCount.textContent = formatCount(data.subscriberCount);
   subscribeChannelButton.textContent = data.subscribed ? 'Inscrito' : 'Inscrever-se';
@@ -485,7 +492,7 @@ videoCommentForm.addEventListener('submit', async (event) => {
   if (!currentUser) return openAuth();
   if (!activeVideoSocial || !videoCommentText.value.trim()) return;
   const response = await fetch(`/api/videos/${encodeURIComponent(activeVideoSocial.videoId)}/comments`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: videoCommentText.value }) });
-  const data = await response.json();
+  const data = await readApiJson(response);
   if (!response.ok) return alert(data.error || 'Não foi possível publicar o comentário.');
   videoCommentText.value = '';
   loadVideoSocial();
@@ -602,7 +609,7 @@ async function loadLiveAnalytics() {
   try {
     const response = await fetch(`/api/analytics/channels/${encodeURIComponent(currentUser.id)}`);
     if (!response.ok) return;
-    const data = await response.json();
+    const data = await readApiJson(response);
     document.querySelector('#studio-live-views').textContent = data.totalViews;
     document.querySelector('#studio-live-subscribers').textContent = data.subscriberCount;
     document.querySelector('#studio-live-clicks').textContent = data.totalClicks;
@@ -727,7 +734,7 @@ function setCurrentUser(user) {
 async function authRequest(url, payload) {
   if (location.protocol === 'file:') throw new Error('O login precisa do servidor local. Abra http://127.0.0.1:4174 no navegador.');
   const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-  const data = await response.json();
+  const data = await readApiJson(response);
   if (!response.ok) throw new Error(data.error || 'Não foi possível concluir a operação.');
   return data;
 }
@@ -761,9 +768,9 @@ logoutButton.addEventListener('click', async () => {
   setCurrentUser(null);
 });
 
-fetch('/api/auth/me').then((response) => response.ok ? response.json() : null).then((data) => setCurrentUser(data?.user || null)).catch(() => setCurrentUser(null));
+fetch('/api/auth/me').then((response) => response.ok ? readApiJson(response) : null).then((data) => setCurrentUser(data?.user || null)).catch(() => setCurrentUser(null));
 setInterval(() => { if (!studioView.hidden) loadLiveAnalytics(); }, 3000);
-fetch('/api/cloud/status').then((response) => response.json()).then((data) => {
+fetch('/api/cloud/status').then((response) => readApiJson(response)).then((data) => {
   cloudStorageEnabled = Boolean(data.configured);
   storageNote.textContent = cloudStorageEnabled
     ? 'Este vídeo será enviado ao Cloudflare Stream e mantido como cópia local nesta sessão.'
@@ -778,3 +785,4 @@ document.querySelectorAll('.chip').forEach((chip) => {
     chip.classList.add('selected');
   });
 });
+
