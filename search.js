@@ -1,6 +1,7 @@
 const params = new URLSearchParams(location.search);
 const query = params.get('q') || '';
 const input = document.querySelector('#results-query');
+async function readApiJson(response) { const text = await response.text(); try { return JSON.parse(text); } catch { throw new Error('Servidor indisponível'); } }
 const normalize = (value) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 const matches = (video) => normalize(query).split(/\s+/).filter(Boolean).every((word) => normalize([video.title, video.description, video.channelName, ...(video.tags || [])].join(' ')).includes(word));
 input.value = query;
@@ -34,12 +35,14 @@ async function localVideos() {
 
 async function load() {
   try {
-    const data = await fetch(`/api/search?q=${encodeURIComponent(query)}`).then((response) => response.json());
+    const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+    const data = await readApiJson(response);
     renderChannels(data.channels || []);
     const local = await localVideos();
     const combined = [...(data.videos || []), ...local].filter((video, index, list) => list.findIndex((item) => item.id === video.id && item.channelName === video.channelName) === index);
     renderVideos(combined);
-  } catch { renderChannels([]); renderVideos([]); }
+  } catch { renderChannels([]); renderVideos([]); document.querySelector('#results-heading').textContent = 'Conecte o servidor do TunTubes para pesquisar o catálogo.'; }
 }
 
 load();
+
