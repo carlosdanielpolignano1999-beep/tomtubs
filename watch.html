@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Assista vídeos e participe da comunidade TunTubes." />
+    <title>Assistir — TunTubes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <script>if (location.protocol === 'file:') { const page = location.pathname.split('/').pop() || 'watch.html'; location.replace(`http://127.0.0.1:4174/${page}${location.search}${location.hash}`); }</script>
+  </head>
+  <body class="watch-body">
+    <header class="topbar"><a class="brand watch-home-logo" href="index.html" title="Voltar para a tela inicial" aria-label="Voltar ao início do TunTubes"><span class="brand-mark">▶</span><span>Tun<span>Tubes</span></span><small>Voltar ao início</small></a><label class="search"><input type="search" placeholder="Pesquisar vídeos" /><span>⌕</span></label><a class="watch-back" href="index.html">← Início</a></header>
+    <main class="watch-layout">
+      <section class="watch-main">
+        <div class="watch-player"><video id="watch-video" controls playsinline hidden></video><div class="watch-placeholder" id="watch-placeholder"><span>▶</span><p>Vídeo disponível no TunTubes</p></div></div>
+        <h1 id="watch-title">Vídeo no TunTubes</h1>
+        <div class="watch-actions"><span id="watch-views">Novo no TunTubes</span><div><button id="like-button" type="button">♡ <span>Curtir</span></button><button type="button" id="share-button">↗ Compartilhar</button></div></div>
+        <section class="watch-channel"><div class="watch-channel-avatar" id="watch-channel-avatar">TT</div><div><strong id="watch-channel-name">TunTubes</strong><p id="watch-subscribers">0 inscritos</p></div><button class="subscribe-button" id="watch-subscribe" type="button">Inscrever-se</button></section>
+        <section class="watch-comments"><h2>Comentários <span id="watch-comment-count">0</span></h2><form id="watch-comment-form"><textarea id="watch-comment-text" maxlength="500" placeholder="Escreva um comentário..."></textarea><button type="submit">Comentar</button></form><div id="watch-comment-list" class="video-comment-list"><p class="comments-empty">Seja a primeira pessoa a comentar.</p></div></section>
+      </section>
+      <aside class="watch-recommendations"><div class="watch-recommend-heading"><h2>Recomendados</h2><a href="index.html">Ver início</a></div><div id="recommendation-list"></div></aside>
+    </main>
+    <dialog class="auth-modal" id="watch-auth-modal"><div class="auth-shell"><button class="icon-button auth-close" id="watch-close-auth" type="button" aria-label="Fechar">×</button><div class="auth-intro"><span class="auth-mark">▶</span><p>CONTA TUNTUBES</p><h2>Entre para participar.</h2><span>Curta, comente e se inscreva nos canais.</span></div><div class="auth-tabs"><button class="auth-tab active" type="button" data-watch-auth-view="login">Entrar</button><button class="auth-tab" type="button" data-watch-auth-view="register">Criar conta</button></div><p class="auth-message" id="watch-auth-message"></p><form class="auth-form active" id="watch-login-form"><label>E-mail<input id="watch-login-email" type="email" required /></label><label>Senha<input id="watch-login-password" type="password" required /></label><button class="auth-submit" type="submit">Entrar</button></form><form class="auth-form" id="watch-register-form"><label>Nome do canal<input id="watch-register-name" maxlength="50" required /></label><label>E-mail<input id="watch-register-email" type="email" required /></label><label>Senha<input id="watch-register-password" type="password" minlength="8" required /></label><label>Confirmar senha<input id="watch-register-confirm" type="password" minlength="8" required /></label><button class="auth-submit" type="submit">Criar conta</button></form></div></dialog>
+    <script src="watch.js"></script>
+  </body>
+</html>
