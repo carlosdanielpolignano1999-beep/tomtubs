@@ -18,13 +18,20 @@
   const needUser = async () => { const user = await currentUser(); if (!user) throw new Error('Faça login para continuar.'); return user; };
   const search = async (term) => {
     if (term.length < 2) return { channels: [], videos: [] };
-    const pattern = `%${term.replace(/[,%()]/g, ' ').trim()}%`;
-    const [channels, videos] = await Promise.all([
+    const cleanTerm = term.replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+    const pattern = `%${cleanTerm}%`;
+    const [channels, indexedVideos] = await Promise.all([
       db.from('profiles').select('id,name,initials').ilike('name', pattern).limit(8),
-      db.from('videos').select('id,title,description,tags,visibility,channel_id,channel_name,updated_at').eq('visibility', 'public').or(`title.ilike.${pattern},description.ilike.${pattern},channel_name.ilike.${pattern}`).limit(16)
+      db.from('videos').select('id,title,description,tags,visibility,channel_id,channel_name,updated_at').eq('visibility', 'public').textSearch('search_vector', cleanTerm, { type: 'websearch', config: 'simple' }).limit(16)
     ]);
-    if (channels.error) throw channels.error; if (videos.error) throw videos.error;
-    return { channels: (channels.data || []).map((row) => ({ id: row.id, name: row.name, initials: row.initials || initials(row.name) })), videos: (videos.data || []).map((row) => ({ id: row.id, title: row.title, description: row.description, tags: row.tags || [], visibility: row.visibility, channelId: row.channel_id, channelName: row.channel_name, updatedAt: row.updated_at })) };
+    if (channels.error) throw channels.error; if (indexedVideos.error) throw indexedVideos.error;
+    let videoRows = indexedVideos.data || [];
+    if (!videoRows.length) {
+      const fallback = await db.from('videos').select('id,title,description,tags,visibility,channel_id,channel_name,updated_at').eq('visibility', 'public').or(`title.ilike.${pattern},description.ilike.${pattern},channel_name.ilike.${pattern}`).limit(16);
+      if (fallback.error) throw fallback.error;
+      videoRows = fallback.data || [];
+    }
+    return { channels: (channels.data || []).map((row) => ({ id: row.id, name: row.name, initials: row.initials || initials(row.name) })), videos: videoRows.map((row) => ({ id: row.id, title: row.title, description: row.description, tags: row.tags || [], visibility: row.visibility, channelId: row.channel_id, channelName: row.channel_name, updatedAt: row.updated_at })) };
   };
   const videoSocial = async (videoId) => {
     const [comments, metric] = await Promise.all([db.from('comments').select('id,video_id,user_id,author_name,text,created_at,updated_at').eq('video_id', videoId).order('created_at', { ascending: false }), db.from('video_metrics').select('views,clicks').eq('video_id', videoId).maybeSingle()]);
