@@ -39,6 +39,7 @@ const authMessage = document.querySelector('#auth-message');
 const storageNote = document.querySelector('#storage-note');
 let selectedFile = null;
 let objectUrl = null;
+let selectedDurationSeconds = 0;
 let selectedFilter = 'normal';
 let uploadedFilter = 'none';
 let editingVideoId = null;
@@ -99,14 +100,33 @@ fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
 });
 dropArea.addEventListener('drop', (event) => handleFile(event.dataTransfer.files[0]));
 
-function handleFile(file) {
-  if (!file || !file.type.startsWith('video/')) return;
+function getVideoDuration(file) {
+  return new Promise((resolve, reject) => {
+    const probe = document.createElement('video');
+    const url = URL.createObjectURL(file);
+    const finish = (value, error) => { URL.revokeObjectURL(url); probe.remove(); error ? reject(error) : resolve(value); };
+    probe.preload = 'metadata';
+    probe.onloadedmetadata = () => finish(probe.duration);
+    probe.onerror = () => finish(0, new Error('Não foi possível verificar esse vídeo.'));
+    probe.src = url;
+  });
+}
+
+async function handleFile(file) {
+  if (!file || !file.type.startsWith('video/')) { alert('Escolha um arquivo de vídeo, GIF ou animação.'); return; }
+  if (file.size > 10 * 1024 * 1024) { alert('Escolha um vídeo de até 10 MB para publicar.'); return; }
+  let duration;
+  try { duration = await getVideoDuration(file); }
+  catch (error) { alert(error.message); return; }
+  if (!Number.isFinite(duration) || duration > 10.05) { alert('Para esta fase do TunTubes, publique vídeos de até 10 segundos.'); return; }
   selectedFile = file;
+  selectedDurationSeconds = duration;
   if (objectUrl) URL.revokeObjectURL(objectUrl);
   objectUrl = URL.createObjectURL(file);
   previewBox.innerHTML = `<video controls src="${objectUrl}"></video>`;
   videoEditor.disabled = false;
   applyPreviewFilter();
+  storageNote.textContent = `Vídeo pronto para publicar: ${duration.toFixed(1)} s · ${(file.size / 1024 / 1024).toFixed(1)} MB.`;
   if (!titleInput.value) titleInput.value = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
   updatePublishState();
 }
@@ -132,7 +152,7 @@ publishButton.addEventListener('click', async () => {
   const entry = {
     id: editingVideoId || crypto.randomUUID(), title, description: descriptionInput.value.trim(), tags: tagsInput.value.split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 12), ownerId: currentUser?.id || null, file: selectedFile,
     channelName: profileName.value.trim() || 'Seu canal', filter: uploadedFilter, visibility: visibilityInput.value,
-    cloudUid: cloudAsset?.uid || null,
+    cloudUid: cloudAsset?.uid || null, durationSeconds: selectedDurationSeconds,
     savedAt: Date.now(), expiresAt: retention === 'infinite' ? null : Date.now() + Number(retention) * 86400000,
   };
   try {
@@ -152,6 +172,7 @@ publishButton.addEventListener('click', async () => {
   tagsInput.value = '';
   previewBox.innerHTML = '<span>A prévia do seu vídeo aparecerá aqui</span>';
   selectedFile = null;
+  selectedDurationSeconds = 0;
   objectUrl = null;
   editingVideoId = null;
   publishButton.textContent = 'Publicar no TunTubes';
@@ -162,7 +183,7 @@ publishButton.addEventListener('click', async () => {
 async function uploadToCloud(file) {
   if (!cloudStorageEnabled) return null;
   if (!currentUser) throw new Error('Entre na sua conta antes de enviar um vídeo para a nuvem.');
-  if (file.size > 50 * 1024 * 1024) throw new Error('Escolha um vídeo de até 50 MB para publicar.');
+  if (file.size > 10 * 1024 * 1024) throw new Error('Escolha um vídeo de até 10 MB para publicar.');
   const storage = window.tuntubesSupabase?.storage;
   if (!storage) throw new Error('A conexão com o armazenamento em nuvem não foi iniciada. Atualize a página e tente novamente.');
   const safeName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]/g, '-');
