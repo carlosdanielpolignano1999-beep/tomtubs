@@ -118,7 +118,7 @@ async function handleFile(file) {
   let duration;
   try { duration = await getVideoDuration(file); }
   catch (error) { alert(error.message); return; }
-  if (!Number.isFinite(duration) || duration > 10.05) { alert('Para esta fase do TunTubes, publique vídeos de até 10 segundos.'); return; }
+  if (!Number.isFinite(duration) || duration > 60.05) { alert('Para esta fase do TunTubes, publique vídeos de até 1 minuto.'); return; }
   selectedFile = file;
   selectedDurationSeconds = duration;
   if (objectUrl) URL.revokeObjectURL(objectUrl);
