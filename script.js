@@ -162,7 +162,7 @@ publishButton.addEventListener('click', async () => {
 async function uploadToCloud(file) {
   if (!cloudStorageEnabled) return null;
   if (!currentUser) throw new Error('Entre na sua conta antes de enviar um vídeo para a nuvem.');
-  if (file.size > 10 * 1024 * 1024) throw new Error('Escolha um vídeo de até 10 MB para publicar.');
+  if (file.size > 50 * 1024 * 1024) throw new Error('Escolha um vídeo de até 50 MB para publicar.');
   const storage = window.tuntubesSupabase?.storage;
   if (!storage) throw new Error('A conexão com o armazenamento em nuvem não foi iniciada. Atualize a página e tente novamente.');
   const safeName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]/g, '-');
