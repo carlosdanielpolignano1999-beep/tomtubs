@@ -161,14 +161,15 @@ publishButton.addEventListener('click', async () => {
 
 async function uploadToCloud(file) {
   if (!cloudStorageEnabled) return null;
-  const linkResponse = await fetch('/api/cloud/direct-upload', { method: 'POST' });
-  const linkData = await readApiJson(linkResponse);
-  if (!linkResponse.ok) throw new Error(linkData.error || 'Não foi possível iniciar o envio para a nuvem.');
-  const uploadData = new FormData();
-  uploadData.append('file', file, file.name);
-  const uploadResponse = await fetch(linkData.uploadURL, { method: 'POST', body: uploadData });
-  if (!uploadResponse.ok) throw new Error('O Cloudflare não recebeu o vídeo. Tente novamente.');
-  return { uid: linkData.uid };
+  if (!currentUser) throw new Error('Entre na sua conta antes de enviar um vídeo para a nuvem.');
+  if (file.size > 100 * 1024 * 1024) throw new Error('Para este primeiro envio, escolha um vídeo de até 100 MB. Vídeos maiores terão envio resumível em breve.');
+  const storage = window.tuntubesSupabase?.storage;
+  if (!storage) throw new Error('A conexão com o armazenamento em nuvem não foi iniciada. Atualize a página e tente novamente.');
+  const safeName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]/g, '-');
+  const path = `${currentUser.id}/${crypto.randomUUID()}-${safeName}`;
+  const { data, error } = await storage.from('videos').upload(path, file, { cacheControl: '3600', contentType: file.type || 'video/mp4', upsert: false });
+  if (error) throw new Error(`Não foi possível enviar o vídeo para a nuvem: ${error.message}`);
+  return { uid: data.path };
 }
 
 function renderSavedVideo(entry, addToTop = false) {
@@ -773,8 +774,8 @@ setInterval(() => { if (!studioView.hidden) loadLiveAnalytics(); }, 3000);
 fetch('/api/cloud/status').then((response) => readApiJson(response)).then((data) => {
   cloudStorageEnabled = Boolean(data.configured);
   storageNote.textContent = cloudStorageEnabled
-    ? 'Este vídeo será enviado ao Cloudflare Stream e mantido como cópia local nesta sessão.'
-    : 'Seu vídeo será salvo neste navegador até o prazo escolhido. Configure o Cloudflare para ativar a cópia na nuvem.';
+    ? 'Este vídeo será enviado com segurança para sua biblioteca na nuvem e também ficará disponível neste navegador.'
+    : 'Seu vídeo será salvo neste navegador até o prazo escolhido. Conecte o armazenamento em nuvem para ativar o backup.';
 }).catch(() => { storageNote.textContent = 'Seu vídeo será salvo neste navegador até o prazo escolhido.'; });
 renderStudioComments();
 if (new URLSearchParams(window.location.search).get('studio') === '1' || window.location.hash === '#studio=1') openStudio();
